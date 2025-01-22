@@ -1,4 +1,3 @@
-// use serde_json::Value;
 use std::collections::HashMap;
 use std::fmt;
 
@@ -22,7 +21,7 @@ pub struct AnnoRepoClient {
     base_url: String,
     container: String,
     // api_key: String,
-    pub client: reqwest::Client,
+    client: reqwest::Client,
 }
 
 impl AnnoRepoClient {
@@ -41,10 +40,10 @@ impl AnnoRepoClient {
         Ok(annorepo_client)
     }
 
-    pub async fn get_about(&self) -> Result<String, reqwest::Error> {
+    pub async fn get_about(&self) -> Result<HashMap<String, serde_json::Value>, reqwest::Error> {
         let url = format!("{}/about", self.base_url);
 
-        Ok(self.client.get(url).send().await?.text().await?)
+        Ok(self.client_get(url).await?)
     }
 
     pub async fn get_fields(&self) -> Result<HashMap<String, i32>, reqwest::Error> {
