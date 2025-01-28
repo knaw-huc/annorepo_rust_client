@@ -25,7 +25,7 @@ pub struct AnnoRepoClient {
 }
 
 impl AnnoRepoClient {
-    pub fn new(base_url: impl Into<String>, container: impl Into<String>) -> Result<Self, Error> {
+    pub fn new<S: Into<String>>(base_url: S, container: S) -> Result<Self, Error> {
         let annorepo_client = Self {
             base_url: base_url.into(),
             container: container.into(),
@@ -48,7 +48,7 @@ impl AnnoRepoClient {
     pub async fn get_fields(&self) -> Result<Value, reqwest::Error> {
         let url = self.resolve_service("fields");
 
-        Ok(self.client_get_json(url).await?)
+        Ok(self.client_get_json(&url).await?)
     }
 
     pub async fn get_indexes(&self) -> Result<Value, reqwest::Error> {
@@ -67,7 +67,7 @@ impl AnnoRepoClient {
         format!("{}/services/{}/{}", self.base_url, self.container, endpoint)
     }
 
-    async fn client_get_json<T>(&self, url: String) -> Result<T, reqwest::Error>
+    async fn client_get_json<T>(&self, url: &str) -> Result<T, reqwest::Error>
     where
         T: serde::de::DeserializeOwned,
     {
