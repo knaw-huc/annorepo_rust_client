@@ -2,20 +2,26 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::fmt;
 
-static APP_USER_AGENT: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"));
+const APP_USER_AGENT: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"));
+
+const LOCATION_HEADER: &str = "location";
 
 #[derive(Debug)]
 pub enum Error {
     UrlNotFound,
+    ReqError(reqwest::Error),
 }
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::UrlNotFound => write!(f, "URL not found"),
+            Self::ReqError(e) => write!(f, "{}", e),
         }
     }
 }
+
+impl std::error::Error for Error {}
 
 #[derive(Debug)]
 pub struct AnnoRepoClient {
@@ -64,14 +70,29 @@ impl AnnoRepoClient {
         Ok(self.client.get(url).send().await?.json().await?)
     }
 
-    pub async fn search(&self, query: HashMap<&str, &str>) -> Result<SearchResult, reqwest::Error> {
+    pub async fn search(&self, query: HashMap<&str, &str>) -> Result<SearchResult, Error> {
         let url = self.resolve_service("search");
 
-        let res = self.client.post(url).json(&query).send().await?;
+        let res = self
+            .client
+            .post(url)
+            .json(&query)
+            .send()
+            .await
+            .map_err(|e| Error::ReqError(e))?;
         println!("res {:?}", res);
 
-        let result = SearchResult::new(&self, res.headers().get("location").unwrap().to_string());
-        Ok(result)
+        if let Some(header) = res.headers().get(LOCATION_HEADER) {
+            Ok(SearchResult::new(
+                self,
+                header
+                    .to_str()
+                    .expect("Header must be valid unicode")
+                    .to_string(),
+            ))?
+        } else {
+            Err(Error::UrlNotFound)
+        }
     }
 
     fn resolve_service(&self, endpoint: &str) -> String {
@@ -94,13 +115,13 @@ impl AnnoRepoClient {
 }
 
 #[derive(Debug)]
-pub struct SearchResult {
-    client: AnnoRepoClient,
+pub struct SearchResult<'a> {
+    client: &'a AnnoRepoClient,
     location: String,
 }
 
-impl SearchResult {
-    pub fn new(client: AnnoRepoClient, location: String) -> Result<Self, Error> {
+impl<'a> SearchResult<'a> {
+    pub fn new(client: &'a AnnoRepoClient, location: String) -> Result<Self, Error> {
         let result = Self { client, location };
 
         Ok(result)
