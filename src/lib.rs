@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use serde_json::Value;
 use std::fmt;
 
 static APP_USER_AGENT: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"));
@@ -40,29 +40,28 @@ impl AnnoRepoClient {
         Ok(annorepo_client)
     }
 
-    pub async fn get_about(&self) -> Result<HashMap<String, serde_json::Value>, reqwest::Error> {
+    pub async fn get_about(&self) -> Result<Value, reqwest::Error> {
         let url = format!("{}/about", self.base_url);
-
-        Ok(self.client_get(url).await?)
+        Ok(self.client.get(url).send().await?.json().await?)
     }
 
-    pub async fn get_fields(&self) -> Result<HashMap<String, i32>, reqwest::Error> {
+    pub async fn get_fields(&self) -> Result<Value, reqwest::Error> {
         let url = self.resolve_service("fields");
 
-        Ok(self.client_get(url).await?)
+        Ok(self.client_get_json(url).await?)
     }
 
-    pub async fn get_indexes(&self) -> Result<Vec<HashMap<String, String>>, reqwest::Error> {
+    pub async fn get_indexes(&self) -> Result<Value, reqwest::Error> {
         let url = self.resolve_service("indexes");
 
-        Ok(self.client_get(url).await?)
+        Ok(self.client.get(url).send().await?.json().await?)
     }
 
     fn resolve_service(&self, endpoint: &str) -> String {
         format!("{}/services/{}/{}", self.base_url, self.container, endpoint)
     }
 
-    async fn client_get<T>(&self, url: String) -> Result<T, reqwest::Error>
+    async fn client_get_json<T>(&self, url: String) -> Result<T, reqwest::Error>
     where
         T: serde::de::DeserializeOwned,
     {
