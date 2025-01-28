@@ -1,4 +1,5 @@
 use serde_json::Value;
+use std::collections::HashMap;
 use std::fmt;
 
 static APP_USER_AGENT: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"));
@@ -63,6 +64,16 @@ impl AnnoRepoClient {
         Ok(self.client.get(url).send().await?.json().await?)
     }
 
+    pub async fn search(&self, query: HashMap<&str, &str>) -> Result<SearchResult, reqwest::Error> {
+        let url = self.resolve_service("search");
+
+        let res = self.client.post(url).json(&query).send().await?;
+        println!("res {:?}", res);
+
+        let result = SearchResult::new(&self, res.headers().get("location").unwrap().to_string());
+        Ok(result)
+    }
+
     fn resolve_service(&self, endpoint: &str) -> String {
         format!("{}/services/{}/{}", self.base_url, self.container, endpoint)
     }
@@ -79,6 +90,20 @@ impl AnnoRepoClient {
         T: serde::de::DeserializeOwned,
     {
         Ok(self.client.get(url).send().await?.json().await?)
+    }
+}
+
+#[derive(Debug)]
+pub struct SearchResult {
+    client: AnnoRepoClient,
+    location: String,
+}
+
+impl SearchResult {
+    pub fn new(client: AnnoRepoClient, location: String) -> Result<Self, Error> {
+        let result = Self { client, location };
+
+        Ok(result)
     }
 }
 
