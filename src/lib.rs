@@ -126,6 +126,10 @@ impl<'a> SearchResult<'a> {
 
         Ok(result)
     }
+
+    pub fn location(&self) -> &String {
+        &self.location
+    }
 }
 
 #[cfg(test)]
