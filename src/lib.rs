@@ -70,7 +70,7 @@ impl AnnoRepoClient {
         Ok(self.client.get(url).send().await?.json().await?)
     }
 
-    pub async fn search(&self, query: HashMap<&str, &str>) -> Result<SearchResult, Error> {
+    pub async fn create_search(&self, query: HashMap<&str, &str>) -> Result<SearchInfo, Error> {
         let url = self.resolve_service("search");
 
         let res = self
@@ -83,12 +83,14 @@ impl AnnoRepoClient {
         println!("res {:?}", res);
 
         if let Some(header) = res.headers().get(LOCATION_HEADER) {
-            Ok(SearchResult::new(
+            let hdr = header.to_str().expect("Header must be valid unicode");
+            println!("got header: {}", hdr);
+            let search_id = hdr.rsplit_once('/').unwrap().1;
+            println!("search_id: {}", search_id);
+            Ok(SearchInfo::new(
                 self,
-                header
-                    .to_str()
-                    .expect("Header must be valid unicode")
-                    .to_string(),
+                search_id.to_string(),
+                hdr.to_string(),
             ))?
         } else {
             Err(Error::UrlNotFound)
@@ -115,16 +117,29 @@ impl AnnoRepoClient {
 }
 
 #[derive(Debug)]
-pub struct SearchResult<'a> {
+pub struct SearchInfo<'a> {
     client: &'a AnnoRepoClient,
+    search_id: String,
     location: String,
 }
 
-impl<'a> SearchResult<'a> {
-    pub fn new(client: &'a AnnoRepoClient, location: String) -> Result<Self, Error> {
-        let result = Self { client, location };
+impl<'a> SearchInfo<'a> {
+    pub fn new(
+        client: &'a AnnoRepoClient,
+        search_id: String,
+        location: String,
+    ) -> Result<Self, Error> {
+        let result = Self {
+            client,
+            search_id,
+            location,
+        };
 
         Ok(result)
+    }
+
+    pub fn search_id(&self) -> &String {
+        &self.search_id
     }
 
     pub fn location(&self) -> &String {
