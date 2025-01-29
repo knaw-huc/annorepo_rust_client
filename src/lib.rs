@@ -1,4 +1,5 @@
 use serde_json::Value;
+use serde_json::Value::Array;
 use std::collections::HashMap;
 use std::fmt;
 
@@ -9,6 +10,7 @@ const LOCATION_HEADER: &str = "location";
 #[derive(Debug)]
 pub enum Error {
     UrlNotFound,
+    MalformedAnnotationPage(Value),
     ReqError(reqwest::Error),
 }
 
@@ -16,6 +18,9 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::UrlNotFound => write!(f, "URL not found"),
+            Self::MalformedAnnotationPage(json) => {
+                write!(f, "Malformed annotation page: {:?}", json)
+            }
             Self::ReqError(e) => write!(f, "{}", e),
         }
     }
@@ -168,7 +173,8 @@ pub struct AnnoIter<'a> {
     client: &'a AnnoRepoClient,
     url: String,
     cur_page: u32,
-    annotations: Value,
+    cur_anno: usize,
+    annotations: Vec<Value>,
 }
 
 impl<'a> AnnoIter<'a> {
@@ -186,13 +192,17 @@ impl<'a> AnnoIter<'a> {
             .read_search_result_page(container_name, search_id, Some(start_page))
             .await
             .unwrap();
-        let annos = annotation_page["items"].clone();
-        Ok(Self {
-            client,
-            url: search_url,
-            cur_page: start_page,
-            annotations: annos,
-        })
+        if let Array(annos) = &annotation_page["items"] {
+            Ok(Self {
+                client,
+                url: search_url,
+                cur_page: start_page,
+                cur_anno: 0,
+                annotations: annos.to_vec(),
+            })
+        } else {
+            Err(Error::MalformedAnnotationPage(annotation_page))
+        }
     }
 }
 
@@ -200,6 +210,12 @@ impl<'a> Iterator for AnnoIter<'a> {
     type Item = &'a Value;
 
     fn next(&mut self) -> Option<Self::Item> {
+        println!("cur={}, size={}", self.cur_anno, self.annotations.len());
+        if self.cur_anno < self.annotations.len() {
+            let anno = self.annotations.get(self.cur_anno).unwrap();
+            self.cur_anno += 1;
+            return Some(&anno);
+        }
         None
     }
 }
