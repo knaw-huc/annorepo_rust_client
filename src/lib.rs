@@ -124,6 +124,20 @@ impl AnnoRepoClient {
         Ok(self.client.get(url).send().await?.json().await?)
     }
 
+    pub async fn read_search_result_annotations(
+        &self,
+        container_name: &str,
+        search_id: &str,
+        start_page: Option<u32>,
+    ) -> Result<AnnoIter, Error> {
+        Ok(AnnoIter::new(
+            self,
+            container_name,
+            search_id,
+            start_page.unwrap_or(0),
+        ))?
+    }
+
     fn resolve_service(&self, endpoint: &str) -> String {
         format!(
             "{base}/services/{container}/{endpoint}",
@@ -145,6 +159,40 @@ impl AnnoRepoClient {
         T: serde::de::DeserializeOwned,
     {
         Ok(self.client.get(url).send().await?.json().await?)
+    }
+}
+
+#[derive(Debug)]
+pub struct AnnoIter<'a> {
+    client: &'a AnnoRepoClient,
+    url: String,
+    cur_page: u32,
+}
+
+impl<'a> AnnoIter<'a> {
+    pub fn new(
+        client: &'a AnnoRepoClient,
+        container_name: &str,
+        search_id: &str,
+        start_page: u32,
+    ) -> Result<Self, Error> {
+        let search_url = format!(
+            "{base}/services/{container_name}/search/{search_id}",
+            base = client.base_url
+        );
+        Ok(Self {
+            client,
+            url: search_url,
+            cur_page: start_page,
+        })
+    }
+}
+
+impl<'a> Iterator for AnnoIter<'a> {
+    type Item = &'a Value;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        None
     }
 }
 
