@@ -65,7 +65,7 @@ impl AnnoRepoClient {
     }
 
     pub async fn get_distinct_values(&self, field: &str) -> Result<Value, reqwest::Error> {
-        let url = self.resolve_service_param(field, "distinct-values");
+        let url = self.resolve_service_param("distinct-values", field);
 
         Ok(self.client.get(url).send().await?.json().await?)
     }
