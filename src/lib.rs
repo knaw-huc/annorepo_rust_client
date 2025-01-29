@@ -95,6 +95,18 @@ impl AnnoRepoClient {
         }
     }
 
+    pub async fn read_search_info(
+        &self,
+        container_name: &str,
+        search_id: &str,
+    ) -> Result<Value, reqwest::Error> {
+        let url = format!(
+            "{base}/services/{container_name}/search/{search_id}/info",
+            base = &self.base_url
+        );
+        Ok(self.client_get_json(&url).await?)
+    }
+
     pub async fn read_search_result_page(
         &self,
         container_name: &str,
