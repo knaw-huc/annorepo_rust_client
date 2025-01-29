@@ -80,17 +80,15 @@ impl AnnoRepoClient {
             .send()
             .await
             .map_err(|e| Error::ReqError(e))?;
-        println!("res {:?}", res);
 
         if let Some(header) = res.headers().get(LOCATION_HEADER) {
-            let hdr = header.to_str().expect("Header must be valid unicode");
-            println!("got header: {}", hdr);
-            let search_id = hdr.rsplit_once('/').unwrap().1;
-            println!("search_id: {}", search_id);
+            let location = header.to_str().expect("Header must be valid unicode");
+            let search_id = location.rsplit_once('/').unwrap().1;
+
             Ok(SearchInfo::new(
                 self,
                 search_id.to_string(),
-                hdr.to_string(),
+                location.to_string(),
             ))?
         } else {
             Err(Error::UrlNotFound)
