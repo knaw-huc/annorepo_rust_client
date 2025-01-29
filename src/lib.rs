@@ -98,13 +98,18 @@ impl AnnoRepoClient {
     }
 
     fn resolve_service(&self, endpoint: &str) -> String {
-        format!("{}/services/{}/{}", self.base_url, self.container, endpoint)
+        format!(
+            "{base}/services/{container}/{endpoint}",
+            base = self.base_url,
+            container = self.container
+        )
     }
 
     fn resolve_service_param(&self, endpoint: &str, param: &str) -> String {
         format!(
-            "{}/services/{}/{}/{}",
-            self.base_url, self.container, endpoint, param
+            "{base}/services/{container}/{endpoint}/{param}",
+            base = self.base_url,
+            container = self.container
         )
     }
 
