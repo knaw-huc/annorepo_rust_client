@@ -61,13 +61,13 @@ impl AnnoRepoClient {
     pub async fn get_indexes(&self) -> Result<Value, reqwest::Error> {
         let url = self.resolve_service("indexes");
 
-        Ok(self.client.get(url).send().await?.json().await?)
+        Ok(self.client_get_json(&url).await?)
     }
 
     pub async fn get_distinct_values(&self, field: &str) -> Result<Value, reqwest::Error> {
         let url = self.resolve_service_param("distinct-values", field);
 
-        Ok(self.client.get(url).send().await?.json().await?)
+        Ok(self.client_get_json(&url).await?)
     }
 
     pub async fn create_search(&self, query: HashMap<&str, &str>) -> Result<SearchInfo, Error> {
