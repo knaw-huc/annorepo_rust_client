@@ -136,6 +136,7 @@ impl AnnoRepoClient {
             search_id,
             start_page.unwrap_or(0),
         ))?
+        .await
     }
 
     fn resolve_service(&self, endpoint: &str) -> String {
@@ -167,10 +168,11 @@ pub struct AnnoIter<'a> {
     client: &'a AnnoRepoClient,
     url: String,
     cur_page: u32,
+    annotations: Value,
 }
 
 impl<'a> AnnoIter<'a> {
-    pub fn new(
+    pub async fn new(
         client: &'a AnnoRepoClient,
         container_name: &str,
         search_id: &str,
@@ -180,10 +182,16 @@ impl<'a> AnnoIter<'a> {
             "{base}/services/{container_name}/search/{search_id}",
             base = client.base_url
         );
+        let annotation_page = client
+            .read_search_result_page(container_name, search_id, Some(start_page))
+            .await
+            .unwrap();
+        let annos = annotation_page["items"].clone();
         Ok(Self {
             client,
             url: search_url,
             cur_page: start_page,
+            annotations: annos,
         })
     }
 }
