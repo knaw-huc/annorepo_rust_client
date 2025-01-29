@@ -1,6 +1,7 @@
 use serde_json::Value;
 use serde_json::Value::Array;
 use std::collections::HashMap;
+use std::collections::VecDeque;
 use std::fmt;
 
 const APP_USER_AGENT: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"));
@@ -144,6 +145,27 @@ impl AnnoRepoClient {
         .await
     }
 
+    pub async fn foreach_search_result_annotation(
+        &self,
+        container_name: &str,
+        search_id: &str,
+        start_page: Option<u32>,
+        f: &dyn Fn(&Value) -> (),
+    ) -> Result<(), Error> {
+        let annotation_page = &self
+            .read_search_result_page(container_name, search_id, start_page)
+            .await
+            .unwrap();
+        if let Array(annos) = &annotation_page["items"] {
+            for anno in annos {
+                f(&anno);
+            }
+            Ok(())
+        } else {
+            Err(Error::MalformedAnnotationPage(annotation_page.clone()))
+        }
+    }
+
     fn resolve_service(&self, endpoint: &str) -> String {
         format!(
             "{base}/services/{container}/{endpoint}",
@@ -174,7 +196,7 @@ pub struct AnnoIter<'a> {
     url: String,
     cur_page: u32,
     cur_anno: usize,
-    annotations: Vec<Value>,
+    annotations: VecDeque<Value>,
 }
 
 impl<'a> AnnoIter<'a> {
@@ -188,17 +210,19 @@ impl<'a> AnnoIter<'a> {
             "{base}/services/{container_name}/search/{search_id}",
             base = client.base_url
         );
-        let annotation_page = client
+        let mut annotation_page = client
             .read_search_result_page(container_name, search_id, Some(start_page))
             .await
             .unwrap();
-        if let Array(annos) = &annotation_page["items"] {
+        let item = annotation_page["items"].take();
+        // if let Array(annos) = annotation_page["items"].take() {
+        if let Array(annos) = item {
             Ok(Self {
                 client,
                 url: search_url,
                 cur_page: start_page,
                 cur_anno: 0,
-                annotations: annos.to_vec(),
+                annotations: annos.into(),
             })
         } else {
             Err(Error::MalformedAnnotationPage(annotation_page))
@@ -207,14 +231,18 @@ impl<'a> AnnoIter<'a> {
 }
 
 impl<'a> Iterator for AnnoIter<'a> {
-    type Item = &'a Value;
+    type Item = Value;
 
     fn next(&mut self) -> Option<Self::Item> {
         println!("cur={}, size={}", self.cur_anno, self.annotations.len());
-        if self.cur_anno < self.annotations.len() {
-            let anno = self.annotations.get(self.cur_anno).unwrap();
-            self.cur_anno += 1;
-            return Some(&anno);
+        // if self.cur_anno < self.annotations.len() {
+        //     let anno = self.annotations.get(self.cur_anno).unwrap().clone();
+        //     self.cur_anno += 1;
+        //     return Some(anno);
+        // }
+        while let Some(anno) = self.annotations.pop_front() {
+            println!("cur={}, left={}", anno, self.annotations.len());
+            return Some(anno);
         }
         None
     }
